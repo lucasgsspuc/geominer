@@ -13,7 +13,45 @@ datasource db {
 model User {
   id    String     @default(uuid()) @id
   email String  @unique
-  name  String?
+  name  String
   username String @unique
-  password String?
+  password String
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  @@index([createdAt])
+  @@index([updatedAt])
+}
+
+enum Provider {
+  AMAZON
+  MERCADOLIVRE
+}
+
+model Product {
+  id             String    @id @default(uuid())
+  title          String @unique
+  description    String?
+  provider       Provider
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id])
+  price          Float
+  link        String?  @db.Text
+  image       String?  @db.Text
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  @@index([createdAt])
+  @@index([updatedAt])
+}
+
+model Category {
+  id             String    @id @default(uuid())
+  name          String    @unique
+  parentId      String?      
+  parent        Category? @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  subcategory Category[] @relation("CategoryHierarchy")
+  products      Product[]
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  @@index([createdAt])
+  @@index([updatedAt])
 }

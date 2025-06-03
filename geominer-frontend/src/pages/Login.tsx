@@ -9,19 +9,28 @@ import {
   Button,
   Grid,
 } from '@mui/material';
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { AuthService } from '../services/AuthService';
+import { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useToast } from '../contexts/ToastContext';
+import { useAuth } from '../contexts/AuthContext';
 
 const Login = () => {
+  const { user, login } = useAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const { showToast } = useToast();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (user) {
+      navigate('/');
+    }
+  }, [user, navigate]);
 
   const handleLogin = async () => {
     try {
-      await AuthService.login({ username, password });
+      await login(username, password);
+      navigate('/');
     } catch (error) {
       showToast('Não foi possível fazer o login. Por favor, tente novamente!', {
         severity: 'error',

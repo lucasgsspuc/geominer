@@ -13,6 +13,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthService } from '../services/AuthService';
 import { useToast } from '../contexts/ToastContext';
+import { useAuth } from '../contexts/AuthContext';
 
 const Register = () => {
   const navigate = useNavigate();
@@ -21,12 +22,13 @@ const Register = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const { showToast } = useToast();
+  const { login } = useAuth();
 
   const handleRegister = async () => {
     try {
       await AuthService.register({ name, email, password, username });
-      await AuthService.login({ password, username });
-      navigate('/home');
+      await login(username, password);
+      navigate('/');
     } catch (error) {
       showToast(
         'Não foi possível fazer o registro da conta. Por favor, tente novamente!',
@@ -113,7 +115,7 @@ const Register = () => {
             </Button>
             <Grid container justifyContent="flex-end">
               <Grid>
-                <Link to="/">Já possui uma conta? Entrar</Link>
+                <Link to="/login">Já possui uma conta? Entrar</Link>
               </Grid>
             </Grid>
           </Box>

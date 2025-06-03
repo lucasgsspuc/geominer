@@ -20,4 +20,10 @@ export class AuthService {
       .get<any>(`${AUTH_PATH}/profile`)
       .then((response) => response.data);
   }
+
+  static async logout() {
+    return geominerApi
+      .post<any>(`${AUTH_PATH}/logout`, {})
+      .then((response) => response.data);
+  }
 }
