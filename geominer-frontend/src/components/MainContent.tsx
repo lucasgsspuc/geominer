@@ -15,6 +15,7 @@ import { Button } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { ProductService } from '../services/ProductService';
+import { debounce } from 'lodash';
 
 const SyledCard = styled(Card)(({ theme }) => ({
   display: 'flex',
@@ -44,13 +45,28 @@ const SyledCardContent = styled(CardContent)({
   },
 });
 
-const StyledTypography = styled(Typography)({
-  display: '-webkit-box',
-  WebkitBoxOrient: 'vertical',
-  WebkitLineClamp: 2,
-  overflow: 'hidden',
-  textOverflow: 'ellipsis',
-});
+interface Category {
+  id: string;
+  name: string;
+  parentId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  parent?: Category;
+}
+
+interface Product {
+  id: string;
+  title: string;
+  description: string | null;
+  provider: string;
+  categoryId: string;
+  price: number;
+  link: string;
+  image: string;
+  createdAt: string;
+  updatedAt: string;
+  category: Category;
+}
 
 function priceFormatter(price: number) {
   return new Intl.NumberFormat('pt-BR', {
@@ -59,13 +75,36 @@ function priceFormatter(price: number) {
   }).format(price);
 }
 
-export function Search() {
+export function Search({ onSearch }: { onSearch: (query: string) => void }) {
+  const [searchQuery, setSearchQuery] = React.useState('');
+
+  // Cria uma versão debounced da função onSearch
+  const debouncedSearch = React.useMemo(
+    () => debounce((query: string) => onSearch(query), 300),
+    [onSearch]
+  );
+
+  // Limpa o debounce quando o componente é desmontado
+  React.useEffect(() => {
+    return () => {
+      debouncedSearch.cancel();
+    };
+  }, [debouncedSearch]);
+
+  const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const query = event.target.value;
+    setSearchQuery(query);
+    debouncedSearch(query); // Chama a função debounced
+  };
+
   return (
     <FormControl sx={{ width: { xs: '100%', md: '35ch' } }} variant="outlined">
       <OutlinedInput
         size="small"
         id="search"
         placeholder="Buscar..."
+        value={searchQuery}
+        onChange={handleInputChange}
         sx={{ flexGrow: 1 }}
         startAdornment={
           <InputAdornment position="start" sx={{ color: 'text.primary' }}>
@@ -84,22 +123,59 @@ export default function MainContent() {
   const [focusedCardIndex, setFocusedCardIndex] = React.useState<number | null>(
     null
   );
+  const [selectedCategory, setSelectedCategory] = React.useState<string | null>(
+    null
+  );
+  const [searchQuery, setSearchQuery] = React.useState<string>('');
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [properties, setProperties] = React.useState<any[]>([]);
+  const [products, setProducts] = React.useState<Product[]>([]);
+  const [allProducts, setAllProducts] = React.useState<Product[]>([]); // Armazena todos os produtos
 
-  const handleShowProperties = async () => {
+  // Busca todos os produtos
+  const handleShowProducts = async () => {
     try {
       const data = user
         ? await ProductService.getAll()
         : await ProductService.home();
-      setProperties(data);
-    } catch (error) {}
+      setProducts(data);
+      setAllProducts(data); // Armazena todos os produtos para filtro
+    } catch (error) {
+      console.error('Erro ao buscar produtos:', error);
+    }
   };
 
   React.useEffect(() => {
-    handleShowProperties();
+    handleShowProducts();
   }, [user]);
+
+  // Aplica filtros de categoria e busca
+  React.useEffect(() => {
+    let filteredProducts = [...allProducts];
+
+    // Filtro de categoria
+    if (selectedCategory && selectedCategory !== 'novidades') {
+      filteredProducts = filteredProducts.filter(
+        (product) =>
+          (product.category.parent?.name.toLowerCase() ||
+            product.category.name.toLowerCase()) === selectedCategory
+      );
+    }
+
+    // Filtro de busca
+    if (searchQuery) {
+      const queryLower = searchQuery.toLowerCase();
+      filteredProducts = filteredProducts.filter(
+        (product) =>
+          product.title.toLowerCase().includes(queryLower) ||
+          (product.description &&
+            product.description.toLowerCase().includes(queryLower)) ||
+          product.category.name.toLowerCase().includes(queryLower)
+      );
+    }
+
+    setProducts(filteredProducts);
+  }, [selectedCategory, searchQuery, allProducts]);
 
   const handleFocus = (index: number) => {
     setFocusedCardIndex(index);
@@ -109,9 +185,33 @@ export default function MainContent() {
     setFocusedCardIndex(null);
   };
 
-  const handleClick = () => {
-    console.info('You clicked the filter chip.');
+  // Filtra produtos por categoria no frontend
+  const handleClick = (category: string) => {
+    const categoryLower = category.toLowerCase();
+    if (selectedCategory === categoryLower) {
+      // Desmarcar categoria e mostrar todos os produtos (sujeito à busca)
+      setSelectedCategory(null);
+    } else {
+      // Selecionar categoria
+      setSelectedCategory(categoryLower);
+    }
   };
+
+  // Manipula a busca
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+  };
+
+  // Lista de categorias
+  const categories = [
+    'Eletrônicos',
+    'Eletrodomésticos',
+    'Moda',
+    'Móveis',
+    'Cozinha',
+    'Livros',
+    'Esporte',
+  ];
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -129,9 +229,11 @@ export default function MainContent() {
           Encontre os produtos que estão em alta e transforme cada oportunidade
           em mais vendas para o seu negócio.
         </Typography>
-        <Box display="flex" flexDirection="column" gap={2} mt={4}>
-          <Search />
-        </Box>
+        {user && (
+          <Box display="flex" flexDirection="column" gap={2} mt={4}>
+            <Search onSearch={handleSearch} />
+          </Box>
+        )}
       </Box>
 
       <Box
@@ -153,39 +255,44 @@ export default function MainContent() {
             overflow: 'auto',
           }}
         >
-          <Chip onClick={handleClick} size="medium" label="Novidades" />
-          <Chip
-            onClick={handleClick}
-            size="medium"
-            label="Eletrônicos"
-            sx={{
-              backgroundColor: 'transparent',
-              border: 'none',
-            }}
-          />
-          <Chip
-            onClick={handleClick}
-            size="medium"
-            label="Moda"
-            sx={{
-              backgroundColor: 'transparent',
-              border: 'none',
-            }}
-          />
-          <Chip
-            onClick={handleClick}
-            size="medium"
-            label="Móveis"
-            sx={{
-              backgroundColor: 'transparent',
-              border: 'none',
-            }}
-          />
+          {user &&
+            categories.map((category) => (
+              <Chip
+                key={category}
+                onClick={() => handleClick(category)}
+                size="medium"
+                label={category}
+                variant={
+                  selectedCategory === category.toLowerCase()
+                    ? 'filled'
+                    : 'outlined'
+                }
+                color={
+                  selectedCategory === category.toLowerCase()
+                    ? 'primary'
+                    : 'default'
+                }
+                sx={{
+                  backgroundColor:
+                    selectedCategory === category.toLowerCase()
+                      ? undefined
+                      : 'transparent',
+                  border:
+                    selectedCategory === category.toLowerCase()
+                      ? undefined
+                      : 'none',
+                }}
+              />
+            ))}
         </Box>
       </Box>
       <Grid container spacing={2} columns={16}>
-        {properties?.map((property) => (
-          <Grid size={{ xs: 16, md: 4 }} key={property.id}>
+        {products?.map((product) => (
+          <Grid
+            size={{ xs: 16, md: 4 }}
+            onClick={() => window.open(product.link, '_blank')}
+            key={product.id}
+          >
             <SyledCard
               variant="outlined"
               onFocus={() => handleFocus(0)}
@@ -195,7 +302,7 @@ export default function MainContent() {
             >
               <CardMedia
                 component="img"
-                image={property.image}
+                image={product.image}
                 sx={{
                   aspectRatio: '16 / 9',
                   borderBottom: '1px solid',
@@ -204,11 +311,10 @@ export default function MainContent() {
               />
               <SyledCardContent>
                 <Typography variant="h6">
-                  {priceFormatter(property.price)}
+                  {priceFormatter(product.price)}
                 </Typography>
-
                 <Typography gutterBottom variant="subtitle2" component="div">
-                  {property.title}
+                  {product.title}
                 </Typography>
               </SyledCardContent>
             </SyledCard>

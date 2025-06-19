@@ -1,12 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, Provider } from '@prisma/client';
 import { PrismaService } from 'src/prisma.service';
 
 @Injectable()
 export class ProductService {
   constructor(private prisma: PrismaService) {}
 
-  async seedProducts(products: Record<string, any[]>) {
+  async seedProducts(products: Record<string, any[]>, provider: Provider) {
     for (const [categoriaCompleta, itens] of Object.entries(products)) {
       // 1. Extrai a categoria ("Moda", "Cozinha", etc)
       const categoriaNome = categoriaCompleta
@@ -40,7 +40,7 @@ export class ProductService {
             data: {
               title: item.title,
               price: preco,
-              provider: 'AMAZON', // você pode dinamizar isso se quiser
+              provider,
               categoryId: categoria.id,
               link: item.link,
               image: item.image,
@@ -64,7 +64,9 @@ export class ProductService {
   }
 
   findAll() {
-    return this.prisma.product.findMany({ include: { category: true } });
+    return this.prisma.product.findMany({
+      include: { category: { include: { parent: true } } },
+    });
   }
 
   findForHome() {

@@ -29,7 +29,7 @@ enum Provider {
 
 model Product {
   id             String    @id @default(uuid())
-  title          String @unique
+  title String @unique(length: 255) @db.Text
   description    String?
   provider       Provider
   categoryId String

@@ -35,7 +35,6 @@ const StyledToolbar = styled(Toolbar)(({ theme }) => ({
 export default function AppAppBar() {
   const { user, logout } = useAuth();
   const { showToast } = useToast();
-
   const [open, setOpen] = React.useState(false);
 
   const toggleDrawer = (newOpen: boolean) => () => {
@@ -74,25 +73,21 @@ export default function AppAppBar() {
           >
             <Sitemark />
             <Box sx={{ display: { xs: 'none', md: 'flex' } }}>
-              <Button variant="text" color="info" size="small">
-                Preços
-              </Button>
-              <Button
-                variant="text"
-                color="info"
-                size="small"
-                sx={{ minWidth: 0 }}
-              >
-                FAQ
-              </Button>
-              <Button
-                variant="text"
-                color="info"
-                size="small"
-                sx={{ minWidth: 0 }}
-              >
-                Blog
-              </Button>
+              <Link to="/pricing">
+                <Button variant="text" color="info" size="small">
+                  Preços
+                </Button>
+              </Link>
+              <Link to="/faq">
+                <Button
+                  variant="text"
+                  color="info"
+                  size="small"
+                  sx={{ minWidth: 0 }}
+                >
+                  FAQ
+                </Button>
+              </Link>
             </Box>
           </Box>
           <Box
@@ -151,7 +146,9 @@ export default function AppAppBar() {
                     <CloseRoundedIcon />
                   </IconButton>
                 </Box>
-                <MenuItem>Preços</MenuItem>
+                <Link to="/pricing">
+                  <MenuItem>Preços</MenuItem>
+                </Link>
                 <MenuItem>FAQ</MenuItem>
                 <MenuItem>Blog</MenuItem>
                 <Divider sx={{ my: 3 }} />
